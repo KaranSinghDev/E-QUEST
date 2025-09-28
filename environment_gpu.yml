@@ -1,0 +1,32 @@
+# ==============================================================================
+# E-QUEST FRAMEWORK: CONDA ENVIRONMENT FILE (v11 - Universal & Failsafe)
+# ==============================================================================
+# This file creates a stable, cross-platform base environment that is
+# guaranteed to work. It provides high-performance CPU simulation out-of-the-box.
+#
+# Optional GPU support requires manual installation steps outlined in the README.md.
+# ==============================================================================
+
+name: equest-env
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pandas
+  - numpy
+  - scikit-learn
+  - matplotlib
+  - scipy
+  - pytorch>=2.3,<2.4
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - pip
+  - pip:
+      - autoray==0.7.2
+      - pennylane==0.42.0
+      - pennylane-lightning==0.42.0 # CPU version, works everywhere
+      - git+https://github.com/LAL/trackml-library.git@master

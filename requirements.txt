@@ -1,0 +1,30 @@
+# ==============================================================================
+# E-QUEST FRAMEWORK REQUIREMENTS (Universal)
+# ==============================================================================
+# This file is designed for maximum compatibility across different operating
+# systems (Windows, Linux, Mac) and Python versions (3.10+).
+#
+# --- INSTRUCTIONS FOR USERS ---
+# 1. Create and activate a Python virtual environment.
+# 2. Run: pip install -r requirements.txt
+# 3. (For GPU users) See the README.md for instructions on installing the
+#    optional GPU-accelerated packages for PyTorch and PennyLane.
+# ==============================================================================
+
+# --- Core Scientific & Data Handling ---
+# We specify compatible ranges to allow pip to find a working version.
+pandas>=2.0,<3.0
+numpy>=1.26,<2.0
+scipy>=1.12,<2.0
+scikit-learn>=1.4,<2.0
+matplotlib>=3.8,<4.0
+
+# --- Machine Learning & Simulation (CPU-Compatible by Default) ---
+# This allows pip to find a CPU or GPU version of torch that matches the user's system.
+torch>=2.2,<3.0
+pennylane>=0.35,<0.36
+# The CPU version of pennylane-lightning is installed by default for compatibility.
+pennylane-lightning>=0.35,<0.36
+
+# --- Utilities ---
+# trackml is installed separately. See the main README.md for instructions.

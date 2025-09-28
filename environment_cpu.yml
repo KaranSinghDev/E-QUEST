@@ -1,0 +1,29 @@
+# ==============================================================================
+# E-QUEST FRAMEWORK: CPU-ONLY ENVIRONMENT
+# ==============================================================================
+# Use this file if you DO NOT have a compatible NVIDIA GPU.
+# To create, run: conda env create -f environment-cpu.yml
+# ==============================================================================
+
+name: equest-env
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pandas
+  - numpy
+  - scikit-learn
+  - matplotlib
+  - scipy
+  # This line will automatically install a CPU-only build of PyTorch
+  - pytorch>=2.3,<2.4
+  - torchvision
+  - torchaudio
+  - pip
+  - pip:
+      - autoray==0.7.2
+      - pennylane==0.42.0
+      - pennylane-lightning==0.42.0
+      - git+https://github.com/LAL/trackml-library.git@master

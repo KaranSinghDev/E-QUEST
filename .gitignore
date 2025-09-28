@@ -1,0 +1,36 @@
+# ==============================================================================
+# E-QUEST FRAMEWORK: .gitignore
+# ==============================================================================
+
+# --- Generated Data ---
+# Ignore the main ML dataset and its metadata file.
+track_segments_ml_dataset.csv
+track_segments_ml_dataset.manifest.json
+
+# The framework requires the user to download this data themselves.
+/data/train_100_events/
+/data/detectors.csv
+
+# --- Generated Results ---
+# Ignore the entire directory where plots, CSVs, and reports are saved.
+/results/
+
+# --- Python Cache & Environment ---
+# Ignore all Python bytecode cache folders.
+__pycache__/
+*.pyc
+
+# Ignore Python virtual environments.
+venv/
+.venv/
+
+# --- User-specific Files ---
+# Ignore any downloaded installers.
+*.exe
+*.dmg
+*.deb
+
+# Ignore user-specific IDE and OS files.
+.vscode/
+.idea/
+*.DS_Store
