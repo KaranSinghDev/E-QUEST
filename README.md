@@ -75,12 +75,12 @@ The entire workflow is managed by the `run_benchmark.py` conductor script.
 *   **To run a quick "smoke test" (2-5 minutes):**
     This will run the full pipeline on a small dataset to verify the installation is working correctly.
     ```bash
-    python run_full_analysis.py --smoke-test
+    python run_benchmark.py --smoke-test
     ```
 
 *   **To run the full scientific benchmark (may take several hours):**
     ```bash
-    python run_full_analysis.py
+    python run_benchmark.py
     ```
 
 Upon completion, all generated plots and a summary report will be available in the `results/` directory.
