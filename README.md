@@ -5,7 +5,9 @@
 [![Language](https://img.shields.io/badge/Python-3.10-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-<img width="1434" height="413" alt="image" src="https://gist.github.com/user-attachments/assets/6b8528de-aeb7-465b-9720-0b8d9d94d9a4" />
+<p align="center">
+  <img width="900" alt="E-QUEST Framework Banner" src="https://gist.github.com/user-attachments/assets/6b8528de-aeb7-465b-9720-0b8d9d94d9a4">
+</p>
 ----
 
 ## GSoC 2025 Project Information
