@@ -1,9 +1,7 @@
 # --- Universal Path Setup ---
 import sys
 import os
-# This block of code is designed to solve the ModuleNotFoundError
-# by dynamically adding the project's root directory to the Python path.
-# This allows the script to be run from anywhere, either directly or as a subprocess.
+
 try:
     # Get the absolute path of the directory containing the current script.
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +27,6 @@ import inspect
 from src.config_loader import load_config
 from src.classical_mlp import ClassicalMLP
 
-# ... (rest of the file is unchanged)
 
 # --- [2] Define Candidate Scaling Functions for Curve Fitting ---
 # We will test all requested mathematical models to see which one best fits our data.
@@ -94,7 +91,6 @@ def run_empirical_benchmark(input_sizes: list, full_dataset: pd.DataFrame) -> pd
         gpu_train_time_s = benchmark_results["time_training_gpu_s"]
         measured_energy_j = gpu_train_time_s * config.COMPUTATION_POWER_WATTS
         
-        # ADDED: Capture peak_memory_mb and accuracy_auc for saving
         results.append({
             "input_size": size,
             "measured_energy_j": measured_energy_j,
@@ -145,7 +141,6 @@ def find_and_validate_best_fit(results_df: pd.DataFrame):
 
     print("\n--- [1] Fitting Candidate Models ---")
     for name, model_func in MODELS.items():
-        # --- ADDED: Robustness Check ---
         # Get the number of parameters the model needs (e.g., a, b, c)
         num_params = len(inspect.signature(model_func).parameters) - 1 # Subtract 1 for 'x'
         
@@ -153,7 +148,6 @@ def find_and_validate_best_fit(results_df: pd.DataFrame):
         if num_params > len(x_train):
             print(f"  - Model '{name}': Skipped (requires {num_params} data points, have {len(x_train)}).")
             continue # Go to the next model
-        # --- END of ADDED Check ---
             
         try:
             params, _ = curve_fit(model_func, x_train, y_train, maxfev=100000)
@@ -162,7 +156,7 @@ def find_and_validate_best_fit(results_df: pd.DataFrame):
             print(f"  - Model '{name}': Fit successful, MSE = {error:.4f}")
             if error < best_model_error:
                 best_model_error, best_model_name, best_model_params = error, name, params
-        except (RuntimeError, TypeError): # Also catch TypeError for safety
+        except (RuntimeError, TypeError): 
             print(f"  - Model '{name}': Could not converge.")
 
     print(f"\n🏆 Best Fit Model for Empirical Data: '{best_model_name}' with MSE: {best_model_error:.4f}")
