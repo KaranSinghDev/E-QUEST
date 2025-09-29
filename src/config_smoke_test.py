@@ -7,7 +7,7 @@
 
 # --- 1. Global Paths ---
 DATA_DIR = "data/"
-RAW_EVENTS_DIR = f"{DATA_DIR}/train_100_events"
+RAW_EVENTS_DIR = "data/Data_Sample"
 ML_DATASET_PATH = "track_segments_ml_dataset.csv"
 RESULTS_DIR = "results/"
 
