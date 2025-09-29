@@ -74,11 +74,8 @@ def run_quantum_benchmark(input_sizes: list, full_dataset: pd.DataFrame, config)
             "precision": benchmark_results["precision"],
             "recall": benchmark_results["recall"],
             "peak_memory_mb": benchmark_results["peak_memory_mb"],
-            # --- THIS IS THE FIX ---
-            # Use the correct key from the benchmark results, and assign it to the new column name.
             "n_1q_gates": benchmark_results["1q_gates_per_call"],
             "n_2q_gates": benchmark_results["2q_gates_per_call"],
-            # --- END OF FIX ---
             "circuit_depth": benchmark_results["circuit_depth"],
             "total_calls": benchmark_results["total_training_calls"]
         })
@@ -128,7 +125,6 @@ def main():
     print("\n--- Final Combined Results ---")
     print(benchmark_results)
 
-    # --- ADDED: Save the detailed results to a CSV file ---
     results_csv_path = os.path.join(config.RESULTS_DIR, "quantum_results.csv")
     print(f"\n--- Saving detailed results to '{results_csv_path}' ---")
     benchmark_results.to_csv(results_csv_path, index=False)
@@ -156,7 +152,7 @@ def main():
     ax.set_yscale('log')
     ax2.set_yscale('log')
     
-    # Ask matplotlib to combine the legends from both axes
+    # Ask matplotlib to combine the legends from both aaxis
     lines, labels = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax2.legend(lines + lines2, labels + labels2, loc='upper left')
