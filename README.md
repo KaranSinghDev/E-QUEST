@@ -72,6 +72,33 @@ For a quick setup, ensure you have Conda and Git installed, then run the followi
 
 ---
 
+### Setting Up the Data
+
+The E-QUEST framework requires the TrackML particle tracking dataset to run. The repository includes a small sample of 5 events to allow for immediate testing, but for a full benchmark, you will need to download the data yourself.
+
+**1. Download the Dataset:**
+*   Navigate to the official [**TrackML Kaggle Competition page**](https://www.kaggle.com/competitions/trackml-particle-identification/data).
+*   You will need a Kaggle account to download the data.
+*   Download one or more of the `train_*.zip` files (e.g., `train_1.zip`). Each file contains several thousand unique particle collision events.
+
+**2. Place the Data Files:**
+*   Unzip the downloaded file.
+*   The framework expects all the individual event files (e.g., `event000001000-hits.csv`, `event000001000-truth.csv`, etc.) to be placed inside a single directory.
+*   For example, you could create a new folder named `my_trackml_data` and place all the event files inside it.
+
+**3. Configure the Framework:**
+*   Before running the benchmark, you must tell the framework where to find your data.
+*   Open the configuration file you plan to use (e.g., `src/config_full.py`).
+*   Find and update the `RAW_EVENTS_DIR` variable to point to your new data folder:
+    ```python
+    # Example configuration:
+    RAW_EVENTS_DIR = "path/to/my_trackml_data"
+    ```
+
+**Note on Data Usage:** The framework's data processing pipeline efficiently uses only the **`hits`** and **`truth`** files for each event to generate the final machine learning dataset. You do not need to worry about the `particles` or `cells` files.
+
+---
+
 ## Quick Start: Running the Framework
 
 The entire workflow is managed by the `run_benchmark.py` conductor script.
