@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 <p align="center">
-  <img width="900" alt="E-QUEST Framework Banner" src="https://gist.github.com/user-attachments/assets/6b8528de-aeb7-465b-9720-0b8d9d94d9a4">
+  <img width="900" alt="E-QUEST Framework Banner" src="./equest_banner.png">
 </p>
 
 
