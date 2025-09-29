@@ -107,7 +107,6 @@ class ClassicalMLP(BaseAlgorithm):
             # Return total GPU time in seconds
             return total_gpu_time_ms / 1000.0
 
-    # REPLACE the existing evaluate method with this one
     def evaluate(self) -> dict:
         """
         Evaluates the model on the validation set and returns a dictionary of
@@ -119,7 +118,6 @@ class ClassicalMLP(BaseAlgorithm):
             # Get the raw probability predictions from the model
             predictions_proba = self.model(X_val_device).cpu().numpy()
         
-        # --- ADDED: Calculate Precision and Recall ---
         # Convert probabilities to binary predictions (0 or 1) using a 0.5 threshold
         predictions_binary = (predictions_proba > 0.5).astype(int)
         
@@ -130,7 +128,7 @@ class ClassicalMLP(BaseAlgorithm):
         auc_score = roc_auc_score(true_labels, predictions_proba)
         precision = precision_score(true_labels, predictions_binary, zero_division=0)
         recall = recall_score(true_labels, predictions_binary, zero_division=0)
-        # --- END of ADDED Block ---
+
 
         # Return all metrics in a dictionary
         return {
@@ -139,7 +137,6 @@ class ClassicalMLP(BaseAlgorithm):
             "recall": recall
         }
 
-    # REPLACE the existing benchmark method with this one
     def benchmark(self) -> dict:
         """
         Orchestrates the benchmark, measuring time, memory, and a full suite of
