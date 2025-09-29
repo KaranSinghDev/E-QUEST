@@ -6,10 +6,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, precision_score, recall_score
 import time
-# (at the top with the other imports)
 from pennylane import numpy as np
-
-# Import PennyLane and our main blueprint
 import pennylane as qml
 from src.base_algorithm import BaseAlgorithm
 
@@ -80,16 +77,12 @@ class QuantumVQC(BaseAlgorithm):
         # --- Define the shape of our trainable weights ---
         num_layers = self.config.get("num_layers", 2)
         self.weights_shape = qml.templates.StronglyEntanglingLayers.shape(n_layers=num_layers, n_wires=NUM_QUBITS)
-        
-        # --- THIS IS THE FIX ---
-        # 1. First, determine the target device (CPU or GPU)
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"  -> PyTorch components (optimizer) will use device: {self.device}")
         
-        # 2. Now, create the weights tensor DIRECTLY on the target device.
-        #    This ensures it is a "leaf" tensor on the correct device from the start.
+
         self.weights = torch.randn(self.weights_shape, device=self.device, dtype=torch.float64, requires_grad=True)
-        # --- END OF FIX ---
 
     def _load_and_prepare_data(self):
         """
@@ -98,10 +91,7 @@ class QuantumVQC(BaseAlgorithm):
         balanced subset, preventing sampling errors.
         """
         print("  -> Loading and preparing ML dataset from the main data file...")
-        
-        # --- THIS IS THE DEFINITIVE FIX ---
-        # 1. ALWAYS load the main, full dataset to ensure we have a large pool of samples.
-        #    We will ignore the self.dataset_path from the config for the purpose of loading.
+
         main_dataset_path = "track_segments_ml_dataset.csv"
         try:
             df = pd.read_csv(main_dataset_path)
@@ -131,7 +121,7 @@ class QuantumVQC(BaseAlgorithm):
 
         true_segments = df[df['label'] == 1].sample(n=num_true_needed, random_state=42)
         false_segments = df[df['label'] == 0].sample(n=num_false_needed, random_state=42)
-        # --- END OF FIX ---
+
         
         balanced_df = pd.concat([true_segments, false_segments]).sample(frac=1, random_state=42) # Shuffle
         
@@ -149,7 +139,7 @@ class QuantumVQC(BaseAlgorithm):
         
         print(f"  -> Data ready. Training samples: {len(self.X_train_tensor)}, Validation samples: {len(self.X_val_tensor)}")
 
-    # REPLACE your existing train() method with this one
+
     def train(self) -> float:
         """
         Trains the VQC and returns the total computation time in seconds, using the
@@ -205,7 +195,7 @@ class QuantumVQC(BaseAlgorithm):
                 
         return total_computation_time_s
 
-    # REPLACE the existing evaluate method with this one
+
     def evaluate(self) -> dict:
         """
         Evaluates the VQC on the validation set and returns a dictionary of
@@ -219,7 +209,7 @@ class QuantumVQC(BaseAlgorithm):
             # Get the ground truth labels, which are also in {-1, 1}
             true_labels_raw = self.y_val_tensor.numpy()
 
-        # --- ADDED: Calculate All Metrics ---
+
         # 1. For AUC, convert both to probabilities {0, 1}
         probs_for_auc = (predictions_raw + 1) / 2
         true_labels_for_auc = (true_labels_raw + 1) / 2
@@ -236,7 +226,7 @@ class QuantumVQC(BaseAlgorithm):
         # The `pos_label=1` argument is crucial here.
         precision = precision_score(true_labels_raw, predictions_binary, pos_label=1, zero_division=0)
         recall = recall_score(true_labels_raw, predictions_binary, pos_label=1, zero_division=0)
-        # --- END of ADDED Block ---
+
 
         # Return all metrics in a dictionary
         return {
@@ -245,10 +235,6 @@ class QuantumVQC(BaseAlgorithm):
             "recall": recall
         }
 
- 
-        # ... (no changes here) ...
-
-    # REPLACE your existing get_gate_counts method with this one
     def get_gate_counts(self) -> dict:
         """
         Calculates hardware-independent gate counts by decomposing the circuit.
@@ -270,7 +256,7 @@ class QuantumVQC(BaseAlgorithm):
         
         return {"1q_gates_per_call": total_1q_gates, "2q_gates_per_call": total_2q_gates}
 
-    # ADD the following NEW method right after get_gate_counts
+
     def get_circuit_specs(self) -> dict:
         """
         Calculates the circuit depth using the robust, manual method
@@ -296,7 +282,7 @@ class QuantumVQC(BaseAlgorithm):
         circuit_depth = np.max(wire_depths) if len(wire_depths) > 0 else 0
         return {"circuit_depth": circuit_depth}
 
-    # REPLACE your existing benchmark method with this one
+
     def benchmark(self) -> dict:
         """
         Orchestrates the full benchmark for the VQC, now measuring time,
