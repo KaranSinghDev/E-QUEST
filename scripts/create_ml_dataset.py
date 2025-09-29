@@ -25,8 +25,6 @@ import json
 from src.config_loader import load_config
 from src.data_loader import DataLoader
 
-# ... (rest of the file is unchanged)
-
 
 def create_segments_optimal(hits: pd.DataFrame, truth: pd.DataFrame) -> pd.DataFrame:
     """
@@ -107,7 +105,6 @@ def create_segments_optimal(hits: pd.DataFrame, truth: pd.DataFrame) -> pd.DataF
 
 
 config = load_config()
-# REPLACE your existing main() function with this new version
 def main():
     """
     Main function to drive the creation of the ML-ready dataset.
@@ -189,6 +186,5 @@ def main():
     print("\n--- [2] Sample of 5 TRUE segments (label=1) ---")
     print(final_ml_dataset[final_ml_dataset['label'] == 1].head())
 
-# This part of the script is unchanged
 if __name__ == "__main__":
     main()
