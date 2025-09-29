@@ -10,11 +10,12 @@
 </p>
 
 
-## GSoC 2025 Project Information
-*   **Organization:** CERN-HSF (HEP Software Foundation)
-*   **Mentors:** Miriam Lucio, Arantza Oyanguren
-*   **Student:** Karan Singh
-*   **Project Proposal:** "Benchmarking for Sustainable Classical & Quantum Algorithms"
+### 📌 Project Info  
+| **Organization** | CERN-HSF, Princeton University |
+|:-----------------|:-------------------------|
+| **Mentor(s)**   | MiriamLucioMartinez, Arantza Oyanguren |
+| **Contributor** | Karan Singh |
+| **Project Proposal** | Benchmarking for Sustainable Classical & Quantum Algorithms |
 
 ## Synopsis
 
