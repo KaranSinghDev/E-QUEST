@@ -8,7 +8,7 @@
 <p align="center">
   <img width="900" alt="E-QUEST Framework Banner" src="https://gist.github.com/user-attachments/assets/6b8528de-aeb7-465b-9720-0b8d9d94d9a4">
 </p>
-----
+
 
 ## GSoC 2025 Project Information
 *   **Organization:** CERN-HSF (HEP Software Foundation)
