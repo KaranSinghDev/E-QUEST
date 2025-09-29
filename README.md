@@ -95,7 +95,7 @@ The E-QUEST framework requires the TrackML particle tracking dataset to run. The
     RAW_EVENTS_DIR = "data/Data_Sample"
     ```
 
-**Note on Data Usage:** The framework's data processing pipeline efficiently uses only the **`hits`** and **`truth`** files for each event to generate the final machine learning dataset. You do not need to worry about the `particles` or `cells` files.
+**Note on Data Files:** For each event (e.g., `event000001000`), the official `trackml` library helper function requires all four associated files (`-hits.csv`, `-truth.csv`, `-cells.csv`, and `-particles.csv`) to be present for successful data loading. While our framework's core logic primarily uses the `hits` and `truth` data, all four files must be in the directory.
 
 ---
 
