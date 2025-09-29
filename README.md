@@ -69,8 +69,8 @@ For a quick setup, ensure you have Conda and Git installed, then run the followi
     conda activate equest-env
     ```
     > **For full quantum GPU acceleration**, please follow the detailed manual setup guide in **[`docs/INSTALLATION.md`](./docs/INSTALLATION.md)**.
-
-Note: If having any problem with the compatability issues in linux, it is recommended to skip "torchaudio","torchvision".
+    > **Note: If having any problem with the compatability issues in linux, it is recommended to skip "torchaudio","torchvision"**.
+    
 ---
 
 ### Setting Up the Data
