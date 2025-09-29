@@ -11,21 +11,19 @@ class DataLoader:
     leveraging the official 'trackml' library for efficiency and feature engineering.
     """
 
-    def __init__(self, data_path: str):
+# In src/data_loader.py
+# REPLACE the existing __init__ method with this one:
+    def __init__(self, events_path: str):
         """
         Initializes the DataLoader.
-
+    
         Args:
-            data_path (str): The root path to the data directory (e.g., 'data/').
+            events_path (str): The full, direct path to the directory containing the event files.
         """
-        self.data_path = data_path
-        self.events_path = os.path.join(self.data_path, "train_100_events")
-        
-        # We no longer need to load detectors.csv manually,
-        # as the library functions don't require it for loading events.
+        self.events_path = events_path
+        # We no longer need to load detectors.csv manually.
         print(f"DataLoader initialized. Using 'trackml' library.")
         print(f"Expecting event files in: {self.events_path}")
-
     def get_event_with_cylindrical_coords(self, event_id: str) -> tuple | None:
         """
         Loads all data for a single event using the trackml library and adds
