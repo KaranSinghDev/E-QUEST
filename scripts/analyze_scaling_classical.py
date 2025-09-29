@@ -187,6 +187,7 @@ def find_and_validate_best_fit(results_df: pd.DataFrame):
 config = load_config()
 def main():
     """Main function to drive the analysis."""
+    os.makedirs(config.RESULTS_DIR, exist_ok=True)
    
     print("="*60)
     print("🚀 STARTING FINAL CLASSICAL MLP SCALING ANALYSIS 🚀")
