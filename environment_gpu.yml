@@ -28,5 +28,5 @@ dependencies:
   - pip:
       - autoray==0.7.2
       - pennylane==0.42.0
-      - pennylane-lightning==0.42.0 # CPU version, works everywhere
+      - pennylane-lightning[gpu]==0.42.0 
       - git+https://github.com/LAL/trackml-library.git@master
