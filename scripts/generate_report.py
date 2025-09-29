@@ -79,8 +79,6 @@ def plot_time_analysis(classical_df, quantum_df, save_path):
     ax.set_xlabel('Input Size', fontsize=12); ax.set_ylabel('Execution Time (seconds)', fontsize=12); ax.set_yscale('log'); ax.legend(); ax.grid(True, which='both', linestyle='--')
     plt.tight_layout(); plt.savefig(os.path.join(save_path, "4_time_analysis.png"), dpi=300)
 
-# ADD THIS ENTIRE NEW FUNCTION TO YOUR SCRIPT
-# REPLACE your existing plot_normalized_scaling_analysis function with this one
 
 def plot_normalized_scaling_analysis(classical_df, quantum_df, save_path):
     """
@@ -90,14 +88,12 @@ def plot_normalized_scaling_analysis(classical_df, quantum_df, save_path):
     fig, ax = plt.subplots(figsize=(12, 8))
     fig.suptitle('Analysis 5: Normalized Cost Scaling (Trend Comparison)', fontsize=18, fontweight='bold')
 
-    # --- THIS IS THE FIX ---
     # Create local copies of the style dictionaries without the 'label' key,
     # so we can provide more specific labels in the plot call without conflict.
     c_empirical_style = {k: v for k, v in C_EMPIRICAL.items() if k != 'label'}
     q_empirical_style = {k: v for k, v in Q_EMPIRICAL.items() if k != 'label'}
     c_theory_style = {k: v for k, v in C_THEORY.items() if k != 'label'}
     q_theory_style = {k: v for k, v in Q_THEORY.items() if k != 'label'}
-    # --- END OF FIX ---
 
     # --- Normalization Logic ---
     epsilon = 1e-12
