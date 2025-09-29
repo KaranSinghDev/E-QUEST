@@ -1,7 +1,5 @@
 import os
 import pandas as pd
-
-# We now use the powerful, official library functions
 from trackml.dataset import load_event
 from trackml.utils import add_position_quantities
 
@@ -12,7 +10,6 @@ class DataLoader:
     """
 
 # In src/data_loader.py
-# REPLACE the existing __init__ method with this one:
     def __init__(self, events_path: str):
         """
         Initializes the DataLoader.
@@ -21,7 +18,6 @@ class DataLoader:
             events_path (str): The full, direct path to the directory containing the event files.
         """
         self.events_path = events_path
-        # We no longer need to load detectors.csv manually.
         print(f"DataLoader initialized. Using 'trackml' library.")
         print(f"Expecting event files in: {self.events_path}")
     def get_event_with_cylindrical_coords(self, event_id: str) -> tuple | None:
@@ -47,7 +43,6 @@ class DataLoader:
             hits, cells, particles, truth = load_event(event_prefix)
             
             # --- Feature Engineering Step ---
-            # Add cylindrical coordinates. This is a critical step.
             print("  -> Adding cylindrical coordinates (r, phi, rho) to hits data...")
             hits = add_position_quantities(hits)
             
