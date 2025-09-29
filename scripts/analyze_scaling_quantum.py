@@ -87,10 +87,11 @@ def run_quantum_benchmark(input_sizes: list, full_dataset: pd.DataFrame, config)
         
     return pd.DataFrame(results)
 
-
+config = load_config()
 def main():
     """Main function to drive the quantum scaling analysis and generate the final plot."""
-    config = load_config() # ADD THIS LINE
+    os.makedirs(config.RESULTS_DIR, exist_ok=True)
+     # ADD THIS LINE
     print("="*60)
     print("🚀 STARTING QUANTUM VQC ENERGY SCALING ANALYSIS 🚀")
     print("="*60)
