@@ -92,7 +92,7 @@ The E-QUEST framework requires the TrackML particle tracking dataset to run. The
 *   Find and update the `RAW_EVENTS_DIR` variable to point to your new data folder:
     ```python
     # Example configuration:
-    RAW_EVENTS_DIR = "path/to/my_trackml_data"
+    RAW_EVENTS_DIR = "data/Data_Sample"
     ```
 
 **Note on Data Usage:** The framework's data processing pipeline efficiently uses only the **`hits`** and **`truth`** files for each event to generate the final machine learning dataset. You do not need to worry about the `particles` or `cells` files.
