@@ -149,7 +149,7 @@ def main():
 
     # --- 3. If the check fails or no manifest exists, run the full process ---
     print("\n-> Proceeding with dataset generation...")
-    loader = DataLoader(data_path=config.DATA_DIR)
+    loader = DataLoader(events_path=config.RAW_EVENTS_DIR)
     all_event_ids = sorted(list(set([f.split('-')[0] for f in os.listdir(loader.events_path)])))
     events_to_process = all_event_ids[:config.NUM_EVENTS_TO_PROCESS]
     
