@@ -11,7 +11,7 @@
 
 
 ### 📌 Project Info  
-| **Organization** | CERN-HSF, Princeton University |
+| **Organization** | CERN-HSF |
 |:-----------------|:-------------------------|
 | **Mentor(s)**   | MiriamLucioMartinez, Arantza Oyanguren |
 | **Contributor** | Karan Singh |
