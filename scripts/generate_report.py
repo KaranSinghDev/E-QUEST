@@ -127,7 +127,7 @@ def plot_normalized_scaling_analysis(classical_df, quantum_df, save_path):
 config = load_config()
 
 def main():
-    
+    os.makedirs(config.RESULTS_DIR, exist_ok=True)
     print("="*60); print("📈 GENERATING ADVANCED SCIENTIFIC REPORTS 📈"); print("="*60)
     try:
         classical_df = pd.read_csv(os.path.join(config.RESULTS_DIR, "classical_results.csv"))
