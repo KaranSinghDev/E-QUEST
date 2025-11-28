@@ -31,3 +31,17 @@ venv/
 .vscode/
 .idea/
 *.DS_Store
+
+# Ignore all generated datasets and sample data
+/data/
+
+# Ignore generated results
+/results/
+
+# Ignore temporary files created by the workflow
+current_dataset_path.txt
+temp_subset_*.csv
+
+# Ignore Python cache files
+__pycache__/
+*.pyc

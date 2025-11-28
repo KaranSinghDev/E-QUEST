@@ -18,7 +18,7 @@ import subprocess
 import shutil
 import pandas as pd
 from datetime import datetime
-
+import time
 # --- Configuration for the Conductor Script ---
 # This defines the two possible modes and the workflow sequence.
 CONFIG_FULL_PATH = os.path.join('src', 'config_full.py')
@@ -27,6 +27,7 @@ TARGET_CONFIG_PATH = os.path.join('src', 'config.py')
 
 WORKFLOW_SCRIPTS = [
     "scripts/create_ml_dataset.py",
+    "scripts/preprocess_ml_dataset.py",
     "scripts/analyze_scaling_classical.py",
     "scripts/analyze_scaling_quantum.py",
     "scripts/generate_report.py"
@@ -106,21 +107,10 @@ This plot compares the empirical execution time against the theoretical time com
         f.write(report_content)
     print(f"✅ Final report saved successfully to '{report_path}'")
 
-
+# --- REPLACE THE ENTIRE main() FUNCTION WITH THIS ---
+# --- REPLACE YOUR ENTIRE main() FUNCTION WITH THIS ---
 def main():
     """Main conductor function to run the entire workflow."""
-        # --- ADDED: Ensure trackml is properly installed ---
-    # This is a robust check for non-standard packages.
-    try:
-        import trackml
-    except ImportError:
-        print("="*60)
-        print("⚠️  WARNING: 'trackml' library not found or not discoverable.")
-        print("-> Attempting to install it in editable mode from GitHub...")
-        # We need to find the path to the library source if it was cloned.
-        # This is a very complex problem. Let's simplify.
-        # A much simpler and mor
-    
     # --- Determine which mode to run ---
     is_smoke_test = '--smoke-test' in sys.argv
     source_config = CONFIG_SMOKE_TEST_PATH if is_smoke_test else CONFIG_FULL_PATH
@@ -131,37 +121,82 @@ def main():
     print(f"🚀 STARTING E-QUEST WORKFLOW IN **{mode_message}** MODE 🚀")
     print("="*60)
 
-    # --- This is the core logic to dynamically set the configuration ---
-    # It copies the selected config (full or smoke) to the target `src/config.py`
-    # so that all other scripts can import it without being changed.
     try:
         print(f"-> Preparing configuration from '{source_config}'...")
         shutil.copyfile(source_config, TARGET_CONFIG_PATH)
         print("✅ Configuration is set.")
 
-        # --- Execute the workflow step-by-step ---
+        # --- Execute the workflow step-by-step and collect stats ---
+        dataset_path_to_use = None
+        workflow_stats = [] # List to store dictionaries of stats
+
         for i, script_path in enumerate(WORKFLOW_SCRIPTS):
             print("\n" + "-"*60)
             print(f"--- [Step {i+1} of {len(WORKFLOW_SCRIPTS)}] Executing: {script_path} ---")
             print("-"*60)
             
-            # We use subprocess.run with check=True.
-            # This is robust and will automatically stop if a script fails.  # --- THIS IS THE DEFINITIVE FIX ---
-# We use sys.executable to get the absolute path to the Python interpreter
-# that is currently running THIS script (e.g., .../venv/Scripts/python.exe).
-# This guarantees that the subprocess uses the exact same environment.
-            subprocess.run([sys.executable, script_path], check=True)
-
+            stage_start_time = time.perf_counter()
             
-            print(f"✅ Step {i+1} completed successfully.")
+            command = [sys.executable, script_path]
+            
+            # --- START OF DEFINITIVE FIX ---
+            # If this is NOT the first script, it needs the dataset path from the previous step.
+            if i > 0: 
+                if not dataset_path_to_use:
+                    raise RuntimeError("Dataset path was not set by the initial script.")
+                command.append(dataset_path_to_use)
+            # --- END OF DEFINITIVE FIX ---
 
-        # --- Generate the final report ---
-        generate_markdown_report()
+            subprocess.run(command, check=True)
 
+            stage_end_time = time.perf_counter()
+            elapsed_time = stage_end_time - stage_start_time
+            
+            workflow_stats.append({
+                "script": script_path,
+                "time_s": elapsed_time,
+            })
+
+            # --- START OF DEFINITIVE FIX ---
+            # After any script runs, check if it produced a new path file.
+            # This allows the preprocess script to hand off the new balanced path.
+            if os.path.exists("current_dataset_path.txt"):
+                with open("current_dataset_path.txt", "r") as f:
+                    new_path = f.read().strip()
+                if new_path != dataset_path_to_use:
+                    dataset_path_to_use = new_path
+                    print(f"  -> Conductor updated dataset path to: {dataset_path_to_use}")
+            # --- END OF DEFINITIVE FIX ---
+
+            print(f"✅ Step {i+1} completed successfully in {elapsed_time:.2f} seconds.")
+
+        # --- The rest of the function (reporting and cleanup) remains the same ---
+        
+        # ... (Your existing code for generating the final report) ...
+        # (Make sure to copy the full block from the last working version)
+        
+        # For completeness, here is the full reporting and cleanup block:
         print("\n" + "="*60)
         print("🎉 ENTIRE WORKFLOW COMPLETED SUCCESSFULLY! 🎉")
-        print(f"-> All plots and the final report are available in the 'results/' directory.")
+        
+        data_file_size_mb = os.path.getsize(dataset_path_to_use) / (1024 * 1024) if dataset_path_to_use and os.path.exists(dataset_path_to_use) else 0
+        results_dir_size_mb = sum(os.path.getsize(os.path.join('results', f)) for f in os.listdir('results')) / (1024 * 1024) if os.path.exists('results') else 0
+
+        print("\n--- 📊 Workflow Resource Usage Report ---")
+        print("-" * 50)
+        print(f"{'Stage':<40} {'Time (s)':>10}")
+        print("-" * 50)
+        total_time = 0
+        for stats in workflow_stats:
+            print(f"{stats['script']:<40} {stats['time_s']:>10.2f}")
+            total_time += stats['time_s']
+        print("-" * 50)
+        print(f"{'Total Workflow Time':<40} {total_time:>10.2f}")
+        print("\n--- 💾 Disk Usage ---")
+        print(f"  -> Final Dataset Size: {data_file_size_mb:.2f} MB")
+        print(f"  - Results Directory Size: {results_dir_size_mb:.2f} MB")
         print("="*60)
+        print(f"\n-> All plots and the final report are available in the 'results/' directory.")
 
     except FileNotFoundError:
         print("\n❌ CRITICAL ERROR: A required configuration file is missing.")
@@ -176,11 +211,11 @@ def main():
         sys.exit(1)
     finally:
         # --- Cleanup ---
-        # This block ensures that the temporary `src/config.py` is removed
-        # even if the script fails, leaving the project in a clean state.
         if os.path.exists(TARGET_CONFIG_PATH):
             os.remove(TARGET_CONFIG_PATH)
-            print("\n-> Cleanup complete: Temporary configuration file removed.")
+        if os.path.exists("current_dataset_path.txt"):
+            os.remove("current_dataset_path.txt")
+        print("\n-> Cleanup complete: Temporary configuration files removed.")
 
 if __name__ == "__main__":
     main()

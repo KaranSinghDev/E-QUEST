@@ -32,127 +32,126 @@ from src.quantum_vqc import QuantumVQC
 
 
 
+# --- REPLACE THE ENTIRE run_quantum_benchmark FUNCTION WITH THIS ---
 def run_quantum_benchmark(input_sizes: list, full_dataset: pd.DataFrame, config) -> pd.DataFrame:
     """
-    Runs the QuantumVQC benchmark on different data subset sizes and returns the results,
-    including both hardware-dependent time and hardware-independent gate counts.
+    Runs the QuantumVQC benchmark N_RUNS times for each data subset size to 
+    gather statistical data.
     """
-    results = []
+    raw_results = []
     print("\n--- Starting Quantum VQC Empirical Benchmark ---")
     
-    for size in input_sizes:
-        print(f"\n--- Testing with input size: {size:,} ---")
-        if size > len(full_dataset):
-            print(f"   -> Skipping size {size:,} as it is larger than the full dataset.")
-            continue
-        
-        # We need a temporary file for the algorithm to read its balanced subset from.
-        temp_path = f"temp_subset_{size}.csv"
-        # We sample a larger amount to ensure we have enough true/false segments
-        full_dataset.sample(n=min(size*10, len(full_dataset)), random_state=42).to_csv(temp_path, index=False)
-        
-        # Configure and run the benchmark
-        vqc_config = {
-            "dataset_path": temp_path,
-            "num_samples": size,
-            "epochs": config.VQC_EPOCHS,
-            "num_layers": config.VQC_NUM_LAYERS,
-            "lr": config.VQC_LEARNING_RATE,
-            "batch_size": config.VQC_BATCH_SIZE
-        }
-        
-        # Set a seed for reproducibility
-        torch.manual_seed(42)
-        q_algo = QuantumVQC(config=vqc_config)
-        
-        benchmark_results = q_algo.benchmark()
-                
-        results.append({
-            "input_size": size,
-            "sim_time_gpu_s": benchmark_results["time_training_gpu_s"],
-            "accuracy_auc": benchmark_results["accuracy_auc"],
-            "precision": benchmark_results["precision"],
-            "recall": benchmark_results["recall"],
-            "peak_memory_mb": benchmark_results["peak_memory_mb"],
-            "n_1q_gates": benchmark_results["1q_gates_per_call"],
-            "n_2q_gates": benchmark_results["2q_gates_per_call"],
-            "circuit_depth": benchmark_results["circuit_depth"],
-            "total_calls": benchmark_results["total_training_calls"]
-        })
-                
-        os.remove(temp_path)
-        
-    return pd.DataFrame(results)
+    # --- NEW: Outer loop for statistical runs ---
+    for run_num in range(1, config.N_RUNS + 1):
+        print(f"\n--- Starting Statistical Run {run_num} of {config.N_RUNS} ---")
+        for size in input_sizes:
+            # Use a different random seed for each run for both data sampling and model initialization
+            current_random_state = 42 + run_num
+            torch.manual_seed(current_random_state)
+
+            print(f"  -> Testing with input size: {size:,}")
+            if size > len(full_dataset):
+                print(f"     -> Skipping size {size:,} as it is larger than the full dataset.")
+                continue
+            
+            # Configure and run the benchmark
+            vqc_config = {
+                "dataset": full_dataset, # Pass the entire DataFrame
+                "num_samples": size,
+                "epochs": config.VQC_EPOCHS,
+                "num_layers": config.VQC_NUM_LAYERS,
+                "lr": config.VQC_LEARNING_RATE,
+                "batch_size": config.VQC_BATCH_SIZE
+            }
+            
+            q_algo = QuantumVQC(config=vqc_config)
+            
+            benchmark_results = q_algo.benchmark()
+                    
+            # Add the run_id to the results dictionary for aggregation
+            result_row = {"run_id": run_num, "input_size": size}
+            result_row.update(benchmark_results)
+            raw_results.append(result_row)
+            
+    return pd.DataFrame(raw_results)
 
 config = load_config()
+# --- REPLACE THE ENTIRE main FUNCTION WITH THIS ---
 def main():
     """Main function to drive the quantum scaling analysis and generate the final plot."""
+    dataset_path = sys.argv[1]
     os.makedirs(config.RESULTS_DIR, exist_ok=True)
-     # ADD THIS LINE
+
     print("="*60)
     print("🚀 STARTING QUANTUM VQC ENERGY SCALING ANALYSIS 🚀")
     print("="*60)
     
     try:
-        full_dataset = pd.read_csv(config.ML_DATASET_PATH)
+        full_dataset = pd.read_csv(dataset_path)
         print(f"Successfully loaded full dataset with {len(full_dataset):,} rows.")
     except FileNotFoundError:
-        print(f"❌ ERROR: Please run 'create_ml_dataset.py' first.")
-        return
+        print(f"❌ ERROR: Dataset not found at '{dataset_path}'."); return
         
-    benchmark_results  = run_quantum_benchmark(config.QUANTUM_INPUT_SIZES, full_dataset, config)
+    benchmark_results_raw = run_quantum_benchmark(config.QUANTUM_INPUT_SIZES, full_dataset, config)
     
-    if benchmark_results.empty:
+    if benchmark_results_raw.empty:
         print("\n❌ No benchmark data was generated. Aborting analysis.")
         return
+
+    # --- NEW: Aggregation Step ---
+    print("\n--- Aggregating Statistical Results ---")
+    metrics_to_aggregate = [col for col in benchmark_results_raw.columns if col not in ['run_id', 'input_size']]
+    aggregated_results = benchmark_results_raw.groupby('input_size')[metrics_to_aggregate].agg(['mean', 'std'])
+    aggregated_results.columns = ['_'.join(col).strip() for col in aggregated_results.columns.values]
+    aggregated_results.reset_index(inplace=True)
+    print("✅ Aggregation complete.")
         
-    # --- [3] Calculate the Energy Curves ---
+    # --- [3] Calculate the Energy Curves from the MEAN values ---
     print("\n--- Calculating Energy Scaling Curves ---")
 
-    # Curve 1: Hardware-Dependent Simulation Cost
-    benchmark_results['sim_energy_j'] = benchmark_results['sim_time_gpu_s'] * config.COMPUTATION_POWER_WATTS
-    print("✅ Calculated hardware-dependent simulation energy.")
+    aggregated_results['sim_energy_j_mean'] = aggregated_results['sim_time_gpu_s_mean'] * config.COMPUTATION_POWER_WATTS
+    aggregated_results['sim_energy_j_std'] = aggregated_results['sim_time_gpu_s_std'] * config.COMPUTATION_POWER_WATTS
 
-    # Curve 2: Hardware-Independent Projected Cost
-    # Total gates = (gates per call) * (number of calls during training)
-    total_1q_gates = benchmark_results['n_1q_gates'] * benchmark_results['total_calls']
-    total_2q_gates = benchmark_results['n_2q_gates'] * benchmark_results['total_calls']
+    total_1q_gates_mean = aggregated_results['n_1q_gates_mean'] * aggregated_results['total_calls_mean']
+    total_2q_gates_mean = aggregated_results['n_2q_gates_mean'] * aggregated_results['total_calls_mean']
     
-    benchmark_results['projected_energy_j'] = (total_1q_gates * config.ENERGY_PER_1Q_GATE_J) + \
-                                              (total_2q_gates * config.ENERGY_PER_2Q_GATE_J)
-    print("✅ Calculated hardware-independent projected energy.")
+    aggregated_results['projected_energy_j_mean'] = (total_1q_gates_mean * config.ENERGY_PER_1Q_GATE_J) + (total_2q_gates_mean * config.ENERGY_PER_2Q_GATE_J)
+    # We can ignore the std deviation for the projected energy as gate counts are deterministic.
+    aggregated_results['projected_energy_j_std'] = 0 
+    print("✅ Calculated energy scaling curves.")
     
-    print("\n--- Final Combined Results ---")
-    print(benchmark_results)
+    print("\n--- Final Aggregated Results ---")
+    print(aggregated_results)
 
-    results_csv_path = os.path.join(config.RESULTS_DIR, "quantum_results.csv")
-    print(f"\n--- Saving detailed results to '{results_csv_path}' ---")
-    benchmark_results.to_csv(results_csv_path, index=False)
-    print("✅ Detailed results saved.")
+    # Save both raw and aggregated results
+    raw_csv_path = os.path.join(config.RESULTS_DIR, "quantum_results_raw.csv")
+    final_csv_path = os.path.join(config.RESULTS_DIR, "quantum_results.csv")
+    benchmark_results_raw.to_csv(raw_csv_path, index=False)
+    aggregated_results.to_csv(final_csv_path, index=False)
+    print(f"\n--- Saving detailed results ---"); print(f"✅ Raw results saved to '{raw_csv_path}'"); print(f"✅ Aggregated results saved to '{final_csv_path}'")
 
-    # --- Generate the Final Plot ---
+    # --- NEW: Generate the Final Plot with Error Bands ---
     fig, ax = plt.subplots(figsize=(12, 8))
     
-    # Plot the hardware-dependent, empirical simulation results
-    ax.plot(benchmark_results['input_size'], benchmark_results['sim_energy_j'], 
-            'o-', label=f'Hardware-Dependent: Simulation Energy on RTX 3060 ({config.COMPUTATION_POWER_WATTS}W)', color='red', linewidth=2)
-            
-    # Plot the hardware-independent, theoretical projection
-    # NOTE: We create a second y-axis because the projected energy is many orders of magnitude smaller.
-    ax2 = ax.twinx()
-    ax2.plot(benchmark_results['input_size'], benchmark_results['projected_energy_j'], 
-            's--', label='Hardware-Independent: Projected Energy (Gate-Based Model)', color='green', linewidth=2)
+    # Plot Mean Simulation Energy
+    ax.plot(aggregated_results['input_size'], aggregated_results['sim_energy_j_mean'], 'o-', label=f'Mean Sim. Energy on GPU ({config.COMPUTATION_POWER_WATTS}W)', color='red', linewidth=2)
+    # Plot Simulation Energy Standard Deviation
+    ax.fill_between(aggregated_results['input_size'],
+                    aggregated_results['sim_energy_j_mean'] - aggregated_results['sim_energy_j_std'],
+                    aggregated_results['sim_energy_j_mean'] + aggregated_results['sim_energy_j_std'],
+                    color='red', alpha=0.2, label='Standard Deviation (Sim. Energy)')
 
-    ax.set_title('Energy Scaling of Quantum VQC for Track Segment Classification', fontsize=16)
+    ax2 = ax.twinx()
+    # Plot Mean Projected Energy
+    ax2.plot(aggregated_results['input_size'], aggregated_results['projected_energy_j_mean'], 's--', label='Mean Projected Energy (Gate Model)', color='green', linewidth=2)
+
+    ax.set_title('Energy Scaling of Quantum VQC (with Statistical Error)', fontsize=16)
     ax.set_xlabel('Input Size (Number of Training Samples)', fontsize=12)
     ax.set_ylabel('Energy for Simulation on GPU (Joules)', fontsize=12, color='red')
     ax2.set_ylabel('Projected Energy on Quantum Hardware (Joules)', fontsize=12, color='green')
     
-    # Use logarithmic scale to handle the vast difference in energy scales
-    ax.set_yscale('log')
-    ax2.set_yscale('log')
+    ax.set_yscale('log'); ax2.set_yscale('log')
     
-    # Ask matplotlib to combine the legends from both aaxis
     lines, labels = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax2.legend(lines + lines2, labels + labels2, loc='upper left')

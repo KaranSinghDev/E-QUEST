@@ -15,6 +15,7 @@ RESULTS_DIR = "results/"
 # --- 2. Data Creation Parameters ---
 # Use 2 events to get a decent-sized dataset without taking too long.
 NUM_EVENTS_TO_PROCESS = 2
+N_RUNS= 2
 Z_CUT = 200.0
 PHI_CUT = 0.1
 CHUNK_SIZE = 500

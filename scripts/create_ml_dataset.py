@@ -105,86 +105,80 @@ def create_segments_optimal(hits: pd.DataFrame, truth: pd.DataFrame) -> pd.DataF
 
 
 config = load_config()
+# --- REPLACE THE ENTIRE main() FUNCTION WITH THIS ---
 def main():
     """
     Main function to drive the creation of the ML-ready dataset.
     
-    It now includes a "smart check" to see if a valid dataset for the
-    current configuration already exists, skipping the expensive data
-    generation process if possible.
+    This new version implements a smart caching system with unique filenames
+    to avoid regenerating data and to prevent accidental overwrites.
     """
-   
     print("="*60)
-    print("🚀 STARTING ML-READY DATASET CREATION (with Smart Check) 🚀")
+    print("🚀 STARTING ML-READY DATASET CREATION (with Smart Caching) 🚀")
     print("="*60)
 
-    # --- 1. Define the parameters that create the data's "fingerprint" ---
-    manifest_params = {
-        "NUM_EVENTS_TO_PROCESS": config.NUM_EVENTS_TO_PROCESS,
-        "Z_CUT": config.Z_CUT,
-        "PHI_CUT": config.PHI_CUT,
-        "CHUNK_SIZE": config.CHUNK_SIZE
-    }
-    manifest_path = config.ML_DATASET_PATH.replace('.csv', '.manifest.json')
+    # --- 1. Construct the unique, descriptive filename for the cache ---
+    filename_template = "dataset_events-{}.csv"
+    unique_filename = filename_template.format(config.NUM_EVENTS_TO_PROCESS)
+    
+    # Ensure the DATA_DIR from the config exists
+    os.makedirs(config.DATA_DIR, exist_ok=True)
+    dataset_path = os.path.join(config.DATA_DIR, unique_filename)
 
-    # --- 2. Perform the Smart Check ---
-    if os.path.exists(manifest_path):
-        print(f"-> Found an existing manifest file: '{manifest_path}'")
-        with open(manifest_path, 'r') as f:
-            existing_manifest = json.load(f)
+    # --- 2. Perform the Smart Cache Check ---
+    if os.path.exists(dataset_path):
+        print(f"✅ Found a cached dataset that matches the current configuration.")
+        print(f"   -> Using existing file: '{dataset_path}'")
+    else:
+        # --- 3. If cache miss, run the full data generation process ---
+        print(f"\n-> No cached dataset found. Proceeding with generation...")
+        print(f"   Will create new dataset at: '{dataset_path}'")
+        loader = DataLoader(events_path=config.RAW_EVENTS_DIR)
         
-        # Compare the existing manifest with the current configuration
-        if existing_manifest == manifest_params:
-            print("   ✅ Manifest matches current configuration.")
-            print("   Skipping data generation as a valid dataset already exists.")
-            print("="*60)
-            return # Exit the script successfully
-        else:
-            print("   ⚠️  WARNING: Manifest does not match current configuration. Data will be regenerated.")
-            print(f"      - Existing: {existing_manifest}")
-            print(f"      - Current:  {manifest_params}")
+        try:
+            all_event_ids = sorted(list(set([f.split('-')[0] for f in os.listdir(loader.events_path)])))
+        except FileNotFoundError:
+            print(f"❌ CRITICAL ERROR: The raw data directory was not found at '{loader.events_path}'")
+            print("   Please check the RAW_EVENTS_DIR path in your configuration file.")
+            sys.exit(1) # Exit with an error
 
-    # --- 3. If the check fails or no manifest exists, run the full process ---
-    print("\n-> Proceeding with dataset generation...")
-    loader = DataLoader(events_path=config.RAW_EVENTS_DIR)
-    all_event_ids = sorted(list(set([f.split('-')[0] for f in os.listdir(loader.events_path)])))
-    events_to_process = all_event_ids[:config.NUM_EVENTS_TO_PROCESS]
-    
-    print(f"Found {len(all_event_ids)} events. Will process the first {len(events_to_process)}.")
-    
-    all_event_segments = []
-    for event_id in events_to_process:
-        event_data = loader.get_event_with_cylindrical_coords(event_id)
-        if event_data:
-            hits, _, _, truth = event_data
-            event_segments = create_segments_optimal(hits, truth)
-            all_event_segments.append(event_segments)
-            print(f"...Finished processing event {event_id}. Found {len(event_segments)} segments.")
+        events_to_process = all_event_ids[:config.NUM_EVENTS_TO_PROCESS]
+        
+        print(f"Found {len(all_event_ids)} events. Will process the first {len(events_to_process)}.")
+        
+        all_event_segments = []
+        for event_id in events_to_process:
+            event_data = loader.get_event_with_cylindrical_coords(event_id)
+            if event_data:
+                hits, _, _, truth = event_data
+                event_segments = create_segments_optimal(hits, truth)
+                all_event_segments.append(event_segments)
+                print(f"...Finished processing event {event_id}. Found {len(event_segments)} segments.")
+                
+        if not all_event_segments:
+            print("❌ CRITICAL ERROR: No segments were created from the raw data. Aborting.")
+            sys.exit(1)
             
-    if not all_event_segments:
-        print("❌ ERROR: No segments were created. Aborting.")
-        return
+        final_ml_dataset = pd.concat(all_event_segments, ignore_index=True)
         
-    final_ml_dataset = pd.concat(all_event_segments, ignore_index=True)
+        # --- 4. Save the Final Dataset with the unique name ---
+        print(f"\n--- Saving new dataset to cache ---")
+        final_ml_dataset.to_csv(dataset_path, index=False)
+        print(f"✅ Success! Dataset saved to '{dataset_path}'")
+        
+        print("\n" + "="*60)
+        print("🔬 VERIFYING NEWLY CREATED DATASET 🔬")
+        print(f"Total segments (rows) in final dataset: {len(final_ml_dataset)}")
+        print(f"Columns in final dataset: {final_ml_dataset.columns.tolist()}")
+        print("\n--- [1] Label Distribution (True vs. False Segments) ---")
+        print(final_ml_dataset['label'].value_counts(normalize=True))
     
-    # --- 4. Save the Final Dataset AND the new Manifest File ---
-    print("\n--- Saving Final Dataset and Manifest ---")
-    final_ml_dataset.to_csv(config.ML_DATASET_PATH, index=False)
-    print(f"✅ Success! Dataset saved to '{config.ML_DATASET_PATH}'")
+    # --- 5. Communicate the chosen dataset path to the conductor script ---
+    # This is a robust way to pass the filename to the next steps.
+    with open("current_dataset_path.txt", "w") as f:
+        f.write(dataset_path)
 
-    with open(manifest_path, 'w') as f:
-        json.dump(manifest_params, f, indent=4)
-    print(f"✅ Success! Manifest saved to '{manifest_path}'")
-    
     print("\n" + "="*60)
-    print("🔬 VERIFYING FINAL DATASET 🔬")
-    # ... (The verification part is unchanged) ...
-    print(f"Total segments (rows) in final dataset: {len(final_ml_dataset)}")
-    print(f"Columns in final dataset: {final_ml_dataset.columns.tolist()}")
-    print("\n--- [1] Label Distribution (True vs. False Segments) ---")
-    print(final_ml_dataset['label'].value_counts(normalize=True))
-    print("\n--- [2] Sample of 5 TRUE segments (label=1) ---")
-    print(final_ml_dataset[final_ml_dataset['label'] == 1].head())
 
 if __name__ == "__main__":
-    main()
+    main() 

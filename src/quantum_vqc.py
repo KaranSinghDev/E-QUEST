@@ -69,7 +69,7 @@ class QuantumVQC(BaseAlgorithm):
         super().__init__(config)
         
         # --- Model and Training Configuration ---
-        self.dataset_path = self.config.get("dataset_path")
+        self.dataset = self.config.get("dataset") # Get the DataFrame directly
         self.epochs = self.config.get("epochs", 3)
         self.learning_rate = self.config.get("lr", 0.01)
         self.batch_size = self.config.get("batch_size", 128)
@@ -84,61 +84,43 @@ class QuantumVQC(BaseAlgorithm):
 
         self.weights = torch.randn(self.weights_shape, device=self.device, dtype=torch.float64, requires_grad=True)
 
+# --- REPLACE THE ENTIRE _load_and_prepare_data METHOD WITH THIS ---
     def _load_and_prepare_data(self):
         """
-        Loads and prepares a smaller subset of data suitable for the VQC.
-        This version now loads the full dataset to ensure it can create a
-        balanced subset, preventing sampling errors.
+        Loads and prepares the (now pre-balanced) dataset for the VQC.
+        This method assumes it is receiving a DataFrame that has already been
+        globally balanced by the 'preprocess_ml_dataset.py' script.
         """
-        print("  -> Loading and preparing ML dataset from the main data file...")
+        print("  -> Preparing ML data from in-memory DataFrame...")
+        df = self.dataset # Use the DataFrame passed during initialization
 
-        main_dataset_path = "track_segments_ml_dataset.csv"
-        try:
-            df = pd.read_csv(main_dataset_path)
-        except FileNotFoundError:
-            print(f"❌ CRITICAL ERROR: The main dataset '{main_dataset_path}' was not found.")
-            print("   Please run 'create_ml_dataset.py' first.")
-            # Create empty tensors to prevent further crashes down the line
-            self.X_train_tensor = torch.empty(0)
-            self.y_train_tensor = torch.empty(0)
-            self.X_val_tensor = torch.empty(0)
-            self.y_val_tensor = torch.empty(0)
-            return
-
-        # 2. Get the requested number of samples for THIS SPECIFIC benchmark run from the config.
-        num_samples = self.config.get("num_samples", 2000)
-        print(f"  -> VQC is slow. Creating a balanced subset of {num_samples} total samples.")
+        # The 'num_samples' config now specifies how many samples to draw
+        # from the pre-balanced dataset for this specific benchmark run.
+        num_samples = self.config.get("num_samples")
         
-        # 3. Securely sample from the large DataFrame. This is now guaranteed to work.
-        num_true_needed = num_samples // 2
-        num_false_needed = num_samples - num_true_needed # Handles odd numbers correctly
+        # Sample the required number of rows from the balanced dataset.
+        if num_samples > len(df):
+            print(f"⚠️ WARNING: Requested {num_samples} samples, but balanced dataset only has {len(df)}. Using all available samples.")
+            subset_df = df
+        else:
+            subset_df = df.sample(n=num_samples, random_state=42)
         
-        # Check if we have enough samples in the full dataset
-        if len(df[df['label'] == 1]) < num_true_needed or len(df[df['label'] == 0]) < num_false_needed:
-            print(f"❌ CRITICAL ERROR: Full dataset does not contain enough samples to create a balanced set of size {num_samples}.")
-            # Handle error appropriately
-            return
-
-        true_segments = df[df['label'] == 1].sample(n=num_true_needed, random_state=42)
-        false_segments = df[df['label'] == 0].sample(n=num_false_needed, random_state=42)
-
+        X = subset_df[['delta_r', 'delta_phi', 'delta_z']].values
+        y = subset_df['label'].values
         
-        balanced_df = pd.concat([true_segments, false_segments]).sample(frac=1, random_state=42) # Shuffle
+        # Rescale y from {0, 1} to {-1, 1} for the VQC's output format
+        y = y * 2 - 1 
         
-        X = balanced_df[['delta_r', 'delta_phi', 'delta_z']].values
-        y = balanced_df['label'].values
-        
-        y = y * 2 - 1 # Rescale y from {0, 1} to {-1, 1}
-        
+        # Perform the train-validation split
         X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
         
+        # Convert to tensors
         self.X_train_tensor = torch.tensor(X_train, dtype=torch.float64)
         self.y_train_tensor = torch.tensor(y_train, dtype=torch.float64).view(-1, 1)
         self.X_val_tensor = torch.tensor(X_val, dtype=torch.float64)
         self.y_val_tensor = torch.tensor(y_val, dtype=torch.float64).view(-1, 1)
         
         print(f"  -> Data ready. Training samples: {len(self.X_train_tensor)}, Validation samples: {len(self.X_val_tensor)}")
-
 
     def train(self) -> float:
         """
@@ -254,7 +236,7 @@ class QuantumVQC(BaseAlgorithm):
         total_1q_gates = sum(1 for op in expanded_tape.operations if op.num_wires == 1)
         total_2q_gates = sum(1 for op in expanded_tape.operations if op.num_wires == 2)
         
-        return {"1q_gates_per_call": total_1q_gates, "2q_gates_per_call": total_2q_gates}
+        return {"n_1q_gates": total_1q_gates, "n_2q_gates": total_2q_gates}
 
 
     def get_circuit_specs(self) -> dict:
@@ -302,10 +284,10 @@ class QuantumVQC(BaseAlgorithm):
         
         # Combine all hardware and performance metrics into a single results dictionary
         results = {
-            "time_training_gpu_s": gpu_train_time_s,
-            "peak_memory_mb": peak_memory_mb,
-            "total_training_calls": len(self.X_train_tensor) * self.epochs
-        }
+        "sim_time_gpu_s": gpu_train_time_s,
+        "peak_memory_mb": peak_memory_mb,
+        "total_calls": len(self.X_train_tensor) * self.epochs # <--- CORRECTED KEY NAME
+    }
         # Cleanly merge the dictionaries from our helper methods
         results.update(performance_metrics)
         results.update(gate_counts)
