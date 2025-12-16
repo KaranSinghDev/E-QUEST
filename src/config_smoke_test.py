@@ -12,7 +12,8 @@ ML_DATASET_PATH = "track_segments_ml_dataset.csv"
 RESULTS_DIR = "results/"
 
 # --- 2. Data Creation Parameters (Fast) ---
-NUM_EVENTS_TO_PROCESS = 2   # Only process one event.
+NUM_EVENTS_TO_PROCESS = 2   
+N_RUNS= 2
 Z_CUT = 200.0
 PHI_CUT = 0.1
 CHUNK_SIZE = 500
@@ -23,7 +24,7 @@ COMPUTATION_POWER_WATTS = 15.0
 # --- 4. Classical MLP Analysis Parameters (Fast) ---
 CLASSICAL_INPUT_SIZES = [10_000, 20_000] # Use only two small sizes.
 ENERGY_PER_MAC_JOULES = 50e-12
-MLP_EPOCHS = 1 # Only one epoch.
+MLP_EPOCHS = 1 # Only one epoch
 MLP_LEARNING_RATE = 0.001
 MLP_BATCH_SIZE = 4096
 
