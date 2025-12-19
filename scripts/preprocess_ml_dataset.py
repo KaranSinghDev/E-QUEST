@@ -1,6 +1,7 @@
 # --- Universal Path Setup ---
 import sys
 import os
+
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
@@ -11,8 +12,18 @@ except NameError:
         sys.path.append('.')
 # --- End of Universal Path Setup ---
 
+# ✅ NOW import the runtime config safely
+try:
+    from src.config import DATA_PREPROCESSING_MODE
+except Exception as e:
+    print("❌ Could not import DATA_PREPROCESSING_MODE from src.config")
+    print("   Did run_benchmark.py create config.py?")
+    print(f"   Error: {e}")
+    sys.exit(1)
+
 import pandas as pd
 import sys
+
 
 def main():
     """
@@ -51,46 +62,58 @@ def main():
 
     print(f"  -> Original imbalanced dataset contains {len(df):,} rows.")
 
-    # --- Step 2: Perform the undersampling ---
-    print("  -> Performing undersampling to create a 1:1 balanced dataset...")
+    # ============================================================
+    # NEW: Conditional behavior based on preprocessing mode
+    # ============================================================
 
-    majority_class_df = df[df['label'] == 0]
-    minority_class_df = df[df['label'] == 1]
+    print(f"  -> Original imbalanced dataset contains {len(df):,} rows.")
+    print(f"  -> Selected preprocessing mode: {DATA_PREPROCESSING_MODE}")
 
-    num_minority_samples = len(minority_class_df)
+    if DATA_PREPROCESSING_MODE == "undersample":
+        print("  -> Performing undersampling to create a 1:1 balanced dataset...")
 
-    if num_minority_samples == 0:
-        print("❌ CRITICAL ERROR: No positive samples (label=1) found in the dataset. Cannot balance.")
-        sys.exit(1)
-    
-    print(f"  -> Found {num_minority_samples:,} positive ('true') samples.")
-    print(f"  -> Downsampling the negative ('false') class to match this count...")
+        majority_class_df = df[df['label'] == 0]
+        minority_class_df = df[df['label'] == 1]
 
-    # Randomly sample the majority class to match the size of the minority class.
-    # Using a fixed random_state ensures this is a reproducible process.
-    majority_downsampled_df = majority_class_df.sample(n=num_minority_samples, random_state=42)
+        num_minority_samples = len(minority_class_df)
 
-    # --- Step 3: Combine and shuffle the final dataset ---
-    balanced_df = pd.concat([majority_downsampled_df, minority_class_df])
-    
-    # Shuffle the combined dataframe to ensure data is mixed for training.
-    balanced_df = balanced_df.sample(frac=1, random_state=42)
+        if num_minority_samples == 0:
+            print("❌ CRITICAL ERROR: No positive samples (label=1) found in the dataset. Cannot balance.")
+            sys.exit(1)
+        
+        print(f"  -> Found {num_minority_samples:,} positive ('true') samples.")
+        print(f"  -> Downsampling the negative ('false') class to match this count...")
 
-    print(f"  -> New balanced dataset has {len(balanced_df):,} rows in total.")
-    print(f"     ({len(minority_class_df):,} true samples and {len(majority_downsampled_df):,} false samples)")
+        majority_downsampled_df = majority_class_df.sample(
+            n=num_minority_samples,
+            random_state=42
+        )
 
-    # --- Step 4: Save the new dataset with a descriptive name ---
-    balanced_dataset_path = imbalanced_dataset_path.replace('.csv', '_balanced.csv')
-    print(f"\n-> Saving balanced dataset to: '{balanced_dataset_path}'")
-    balanced_df.to_csv(balanced_dataset_path, index=False)
-    print("✅ Balanced dataset saved successfully.")
+        balanced_df = pd.concat([majority_downsampled_df, minority_class_df])
+        balanced_df = balanced_df.sample(frac=1, random_state=42)
 
-    # --- Step 5: CRITICAL - Communicate the new path back to the conductor ---
-    # This step overwrites the path file, telling all subsequent scripts to
-    # use our new balanced dataset instead of the original imbalanced one.
+        print(f"  -> New balanced dataset has {len(balanced_df):,} rows in total.")
+        balanced_dataset_path = imbalanced_dataset_path.replace('.csv', '_balanced.csv')
+
+        print(f"\n-> Saving balanced dataset to: '{balanced_dataset_path}'")
+        balanced_df.to_csv(balanced_dataset_path, index=False)
+        final_dataset_path = balanced_dataset_path
+        print("✅ Balanced dataset saved successfully.")
+
+    else:
+        # ======================================================
+        # WEIGHTED BCE MODE → DO NOT MODIFY DATASET
+        # ======================================================
+        print("  -> Weighted-BCE mode selected.")
+        print("  -> Skipping undersampling. Keeping FULL dataset as-is.")
+        final_dataset_path = imbalanced_dataset_path
+
+    # --- CRITICAL: Tell conductor what dataset to use next ---
     with open("current_dataset_path.txt", "w") as f:
-        f.write(balanced_dataset_path)
-    print("  -> The workflow will now proceed using the balanced dataset.")
+        f.write(final_dataset_path)
+
+    print(f"  -> The workflow will now proceed using: {final_dataset_path}")
+
 
     print("\n✅ Pre-processing complete.")
     print("="*60)
