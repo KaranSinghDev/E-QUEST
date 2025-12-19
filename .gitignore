@@ -7,10 +7,16 @@
 track_segments_ml_dataset.csv
 track_segments_ml_dataset.manifest.json
 
+# Ignore all generated datasets and sample data
+data/*
+!data/.gitkeep
+
 
 # --- Generated Results ---
 # Ignore the entire directory where plots, CSVs, and reports are saved.
-/results/
+results/*
+!results/.gitkeep
+
 
 # --- Python Cache & Environment ---
 # Ignore all Python bytecode cache folders.
@@ -20,6 +26,7 @@ __pycache__/
 # Ignore Python virtual environments.
 venv/
 .venv/
+
 
 # --- User-specific Files ---
 # Ignore any downloaded installers.
@@ -32,16 +39,7 @@ venv/
 .idea/
 *.DS_Store
 
-# Ignore all generated datasets and sample data
-/data/
 
-# Ignore generated results
-/results/
-
-# Ignore temporary files created by the workflow
+# --- Temporary Files Created by Workflow ---
 current_dataset_path.txt
 temp_subset_*.csv
-
-# Ignore Python cache files
-__pycache__/
-*.pyc
