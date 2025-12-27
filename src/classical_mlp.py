@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -7,27 +8,64 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, precision_score, recall_score # CHANGED: Add new imports
 import time
 
+# --- Universal Path Setup ---
+import sys
+import os
+
+try:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+
+    if project_root not in sys.path:
+        sys.path.append(project_root)
+
+    src_dir = os.path.join(project_root, "src")
+    if src_dir not in sys.path:
+        sys.path.append(src_dir)
+
+except NameError:
+    if '.' not in sys.path:
+        sys.path.append('.')
+# --- End of Universal Path Setup ---
+
+# ✅ Import runtime mode safely
+try:
+    from src.config import DATA_PREPROCESSING_MODE
+except Exception as e:
+    print("❌ Could not import DATA_PREPROCESSING_MODE from src.config")
+    print("   Did run_benchmark.py create src/config.py?")
+    print(f"   Error: {e}")
+    sys.exit(1)
+
+
 # Import our main blueprint
 from src.base_algorithm import BaseAlgorithm
 
 # --- Part 1: Define the Neural Network using PyTorch ---
 class SimpleMLP(nn.Module):
-    """
-    A simple Multi-Layer Perceptron (MLP) for binary classification.
-    """
-    def __init__(self, input_size=3, hidden_size=32):
+    def __init__(self, input_size=3, hidden_size=64):
         super(SimpleMLP, self).__init__()
-        self.network = nn.Sequential(
+
+        self.feature_layers = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, 1),
-            nn.Sigmoid()
+            nn.ReLU()
         )
 
+        self.output_layer = nn.Linear(hidden_size, 1)
+
     def forward(self, x):
-        return self.network(x)
+        x = self.feature_layers(x)
+        x = self.output_layer(x)
+
+        # Important:
+        # undersample mode expects probabilities
+        # weighted mode expects raw logits
+        if DATA_PREPROCESSING_MODE == "undersample":
+            return torch.sigmoid(x)
+        else:
+            return x
 
 # --- Part 2: The Main Algorithm Wrapper Class ---
 class ClassicalMLP(BaseAlgorithm):
@@ -57,6 +95,23 @@ class ClassicalMLP(BaseAlgorithm):
         self.y_train_tensor = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
         self.X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
         self.y_val_tensor = torch.tensor(y_val, dtype=torch.float32).view(-1, 1)
+        pos = (y == 1).sum()
+        neg = (y == 0).sum()
+
+        if DATA_PREPROCESSING_MODE == "weighted":
+            if pos == 0:
+                pos_weight_value = 1.0
+            else:
+                pos_weight_value = neg / pos
+
+            self.pos_weight_tensor = torch.tensor(
+                [pos_weight_value], dtype=torch.float32
+            ).to(self.device)
+
+            print(f"  -> Class distribution: pos={pos}, neg={neg}, pos_weight={pos_weight_value:.2f}")
+        else:
+            print(f"  -> Class distribution: pos={pos}, neg={neg} (undersample mode)")
+
         print(f"  -> Data ready. Training samples: {len(self.X_train_tensor)}, Validation samples: {len(self.X_val_tensor)}")
 
     def train(self) -> float:
@@ -68,7 +123,11 @@ class ClassicalMLP(BaseAlgorithm):
                 train_dataset, batch_size=self.batch_size, shuffle=True,
                 num_workers=4, pin_memory=True
             )
-            criterion = nn.BCELoss()
+            if DATA_PREPROCESSING_MODE == "weighted":
+                criterion = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight_tensor)
+            else:
+                criterion = nn.BCELoss()
+
             optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
             
             # --- PRECISE GPU TIME MEASUREMENT ---
@@ -115,8 +174,16 @@ class ClassicalMLP(BaseAlgorithm):
         self.model.eval()
         X_val_device = self.X_val_tensor.to(self.device)
         with torch.no_grad():
-            # Get the raw probability predictions from the model
-            predictions_proba = self.model(X_val_device).cpu().numpy()
+            outputs = self.model(X_val_device).cpu()
+
+        # Convert to probabilities
+        if DATA_PREPROCESSING_MODE == "weighted":
+            logits = outputs.numpy()
+            predictions_proba = 1 / (1 + np.exp(-logits))   # sigmoid manually
+
+        else:
+            predictions_proba = outputs.numpy()
+
         
         # Convert probabilities to binary predictions (0 or 1) using a 0.5 threshold
         predictions_binary = (predictions_proba > 0.5).astype(int)

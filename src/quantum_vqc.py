@@ -84,7 +84,6 @@ class QuantumVQC(BaseAlgorithm):
 
         self.weights = torch.randn(self.weights_shape, device=self.device, dtype=torch.float64, requires_grad=True)
 
-# --- REPLACE THE ENTIRE _load_and_prepare_data METHOD WITH THIS ---
     def _load_and_prepare_data(self):
         """
         Loads and prepares the (now pre-balanced) dataset for the VQC.
@@ -112,8 +111,30 @@ class QuantumVQC(BaseAlgorithm):
         y = y * 2 - 1 
         
         # Perform the train-validation split
-        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        
+        pos = (y == 1).sum()
+        neg = (y == 0).sum()
+
+        # If very small sample → stratify can crash
+        if pos < 2 or neg < 2:
+            print("⚠️ WARNING: Not enough samples per class for stratified split.")
+            print("   -> Falling back to non-stratified train/val split to keep pipeline stable.")
+
+            X_train, X_val, y_train, y_val = train_test_split(
+                X,
+                y,
+                test_size=0.2,
+                random_state=42,
+                shuffle=True
+            )
+        else:
+            X_train, X_val, y_train, y_val = train_test_split(
+                X,
+                y,
+                test_size=0.2,
+                random_state=42,
+                stratify=y
+            )
+
         # Convert to tensors
         self.X_train_tensor = torch.tensor(X_train, dtype=torch.float64)
         self.y_train_tensor = torch.tensor(y_train, dtype=torch.float64).view(-1, 1)
