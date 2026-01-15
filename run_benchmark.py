@@ -121,10 +121,38 @@ def main():
     print(f"🚀 STARTING E-QUEST WORKFLOW IN **{mode_message}** MODE 🚀")
     print("="*60)
 
+    # ============================================================
+    # NEW USER MODE SELECTION
+    # ============================================================
+    print("\nSelect Data Processing Mode:")
+    print("  [1] Baseline - Undersampling (50/50 balanced dataset)")
+    print("  [2] Full Dataset + Weighted BCE Loss")
+
+    choice = input("\nEnter choice (1 or 2): ").strip()
+
+    if choice == "1":
+        selected_mode = "undersample"
+    elif choice == "2":
+        selected_mode = "weighted"
+    else:
+        print("❌ Invalid choice. Defaulting to UNDERSAMPLE.")
+        selected_mode = "undersample"
+
+    print(f"\n➡️ Data Preprocessing Mode Selected: {selected_mode.upper()}\n")
+
     try:
         print(f"-> Preparing configuration from '{source_config}'...")
         shutil.copyfile(source_config, TARGET_CONFIG_PATH)
-        print("✅ Configuration is set.")
+        print("✅ Base configuration copied.")
+
+        # ============================================================
+        # 🔥 CRITICAL STEP:
+        # Patch config.py to inject DATA_PREPROCESSING_MODE dynamically
+        # ============================================================
+        with open(TARGET_CONFIG_PATH, "a") as cfg:
+            cfg.write(f'\nDATA_PREPROCESSING_MODE = "{selected_mode}"\n')
+
+        print(f"✅ DATA_PREPROCESSING_MODE set to '{selected_mode}' in config.py")
 
         # --- Execute the workflow step-by-step and collect stats ---
         dataset_path_to_use = None

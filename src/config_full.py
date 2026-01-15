@@ -13,12 +13,26 @@ ML_DATASET_PATH = "track_segments_ml_dataset.csv"
 RESULTS_DIR = "results/"
 
 # --- 2. Data Creation Parameters ---
-# Use 2 events to get a decent-sized dataset without taking too long.
 NUM_EVENTS_TO_PROCESS = 2
-N_RUNS= 2
+N_RUNS = 2
 Z_CUT = 200.0
 PHI_CUT = 0.1
 CHUNK_SIZE = 500
+
+# ==============================================================
+# NEW: DATA PREPROCESSING MODE FLAG
+#
+# This flag tells the pipeline which balancing strategy to use.
+#
+# It will be set AUTOMATICALLY by run_benchmark.py based on
+# user input (1 = undersample, 2 = weighted BCE).
+#
+# Do NOT manually modify this in normal usage.
+# ==============================================================
+
+# valid values: "undersample" or "weighted"
+DATA_PREPROCESSING_MODE = "undersample"
+
 
 # --- 3. General Benchmarking Parameters ---
 COMPUTATION_POWER_WATTS = 15.0
