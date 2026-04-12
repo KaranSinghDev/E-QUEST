@@ -19,7 +19,7 @@
 
 ## Synopsis
 
-The E-QUEST framework is a scientific benchmarking tool developed as a part of the Google Summer of Code 2025 with CERN-HSF. It is designed to address the critical challenge of rising energy consumption in High-Energy Physics (HEP) data analysis. As particle physics experiments move towards the exascale data era, the sustainability of traditional computing becomes a major concern.
+The E-QUEST framework is a scientific benchmarking tool developed as a part of the Google Summer of Code 2025 with CERN-HSF. It is designed to address the critical challenge of rising energy consumption in High-Energy Physics (HEP) data analysis. As particle physics experiments move towards the exascale data era, the sustainability of traditional computing becomes a major cocern.
 
 This framework provides a standardized, extensible, and portable environment to systematically compare the performance and resource consumption of classical and quantum machine learning algorithms on a canonical HEP problem: particle track segment classification.
 
