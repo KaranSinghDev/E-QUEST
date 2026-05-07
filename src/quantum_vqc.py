@@ -1,3 +1,4 @@
+import logging
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -9,6 +10,14 @@ import time
 from pennylane import numpy as np
 import pennylane as qml
 from src.base_algorithm import BaseAlgorithm
+
+logging.getLogger("zeus").setLevel(logging.WARNING)
+
+try:
+    from zeus.monitor import ZeusMonitor as _ZeusMonitor
+    _ZEUS_AVAILABLE = True
+except ImportError:
+    _ZEUS_AVAILABLE = False
 
 # --- Part 1: Define the Quantum Circuit (QNode) ---
 
@@ -267,31 +276,58 @@ class QuantumVQC(BaseAlgorithm):
 
     def benchmark(self) -> dict:
         """
-        Orchestrates the full benchmark for the VQC, now measuring time,
-        accuracy, peak memory, gate counts, and circuit depth.
+        Orchestrates the full benchmark for the VQC, measuring time, real GPU
+        energy (via ZeusMonitor), memory, gate counts, circuit depth, and
+        performance metrics.
         """
         self._load_and_prepare_data()
-        gpu_train_time_s = self.train()
 
-        peak_memory_bytes = torch.cuda.max_memory_allocated()
+        # --- Feature 1: Real GPU Energy Measurement via ZeusMonitor ---
+        monitor = None
+        if _ZEUS_AVAILABLE and torch.cuda.is_available():
+            try:
+                monitor = _ZeusMonitor(gpu_indices=[0], approx_instant_energy=True)
+                monitor.begin_window("equest_vqc_training")
+            except Exception:
+                monitor = None
+
+        sim_time_s = self.train()
+
+        if monitor is not None:
+            try:
+                measurement = monitor.end_window("equest_vqc_training")
+                real_energy_j = float(measurement.gpu_energy[0])
+                zeus_window_s = float(measurement.time)
+                energy_source = "zeus_gpu"
+            except Exception:
+                real_energy_j = sim_time_s * 15.0
+                zeus_window_s = sim_time_s
+                energy_source = "estimated"
+        else:
+            real_energy_j = sim_time_s * 15.0
+            zeus_window_s = sim_time_s
+            energy_source = "estimated"
+        # --- End Feature 1 ---
+
+        peak_memory_bytes = torch.cuda.max_memory_allocated() if torch.cuda.is_available() else 0
         peak_memory_mb = peak_memory_bytes / (1024 * 1024)
-        torch.cuda.reset_peak_memory_stats()
-        
-        # The evaluate() method now returns a dictionary of all performance scores
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+
         performance_metrics = self.evaluate()
         gate_counts = self.get_gate_counts()
         circuit_specs = self.get_circuit_specs()
-        
-        # Combine all hardware and performance metrics into a single results dictionary
+
         results = {
-        "sim_time_gpu_s": gpu_train_time_s,
-        "peak_memory_mb": peak_memory_mb,
-        "total_calls": len(self.X_train_tensor) * self.epochs # <--- CORRECTED KEY NAME
-    }
-        # Cleanly merge the dictionaries from our helper methods
+            "sim_time_gpu_s": sim_time_s,
+            "real_energy_j": real_energy_j,
+            "zeus_window_s": zeus_window_s,
+            "energy_source": energy_source,
+            "peak_memory_mb": peak_memory_mb,
+            "total_calls": len(self.X_train_tensor) * self.epochs,
+        }
         results.update(performance_metrics)
         results.update(gate_counts)
         results.update(circuit_specs)
-        
         return results
 

@@ -1,11 +1,21 @@
+import logging
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score, precision_score, recall_score # CHANGED: Add new imports
+from sklearn.metrics import roc_auc_score, precision_score, recall_score
 import time
+
+# Suppress Zeus's verbose INFO-level logging; we only want warnings/errors.
+logging.getLogger("zeus").setLevel(logging.WARNING)
+
+try:
+    from zeus.monitor import ZeusMonitor as _ZeusMonitor
+    _ZEUS_AVAILABLE = True
+except ImportError:
+    _ZEUS_AVAILABLE = False
 
 # Import our main blueprint
 from src.base_algorithm import BaseAlgorithm
@@ -139,24 +149,53 @@ class ClassicalMLP(BaseAlgorithm):
 
     def benchmark(self) -> dict:
         """
-        Orchestrates the benchmark, measuring time, memory, and a full suite of
-        performance metrics (AUC, Precision, Recall).
+        Orchestrates the benchmark, measuring time, memory, real GPU energy
+        (via ZeusMonitor), and a full suite of performance metrics.
         """
         self._load_and_prepare_data()
+
+        # --- Feature 1: Real GPU Energy Measurement via ZeusMonitor ---
+        # Set up ZeusMonitor before training so it captures the full window.
+        # Falls back to a time-based estimate if Zeus or CUDA is unavailable.
+        monitor = None
+        if _ZEUS_AVAILABLE and torch.cuda.is_available():
+            try:
+                monitor = _ZeusMonitor(gpu_indices=[0], approx_instant_energy=True)
+                monitor.begin_window("equest_mlp_training")
+            except Exception:
+                monitor = None
+
         gpu_train_time_s = self.train()
-        
-        peak_memory_bytes = torch.cuda.max_memory_allocated()
+
+        if monitor is not None:
+            try:
+                measurement = monitor.end_window("equest_mlp_training")
+                real_energy_j = float(measurement.gpu_energy[0])
+                zeus_window_s = float(measurement.time)
+                energy_source = "zeus_gpu"
+            except Exception:
+                real_energy_j = gpu_train_time_s * 15.0
+                zeus_window_s = gpu_train_time_s
+                energy_source = "estimated"
+        else:
+            real_energy_j = gpu_train_time_s * 15.0
+            zeus_window_s = gpu_train_time_s
+            energy_source = "estimated"
+        # --- End Feature 1 ---
+
+        peak_memory_bytes = torch.cuda.max_memory_allocated() if torch.cuda.is_available() else 0
         peak_memory_mb = peak_memory_bytes / (1024 * 1024)
-        torch.cuda.reset_peak_memory_stats()
-        
-        # The evaluate() method now returns a dictionary of all performance scores
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+
         performance_metrics = self.evaluate()
-        
-        # Combine all hardware and performance metrics into a single results dictionary
+
         results = {
             "time_training_gpu_s": gpu_train_time_s,
-            "peak_memory_mb": peak_memory_mb
+            "real_energy_j": real_energy_j,
+            "zeus_window_s": zeus_window_s,
+            "energy_source": energy_source,
+            "peak_memory_mb": peak_memory_mb,
         }
-        results.update(performance_metrics) # Cleanly merge the two dictionaries
-        
+        results.update(performance_metrics)
         return results
