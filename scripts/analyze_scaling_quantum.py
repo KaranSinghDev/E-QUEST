@@ -69,7 +69,15 @@ def run_quantum_benchmark(input_sizes: list, full_dataset: pd.DataFrame, config)
             benchmark_results = q_algo.benchmark()
                     
             # Add the run_id to the results dictionary for aggregation
-            result_row = {"run_id": run_num, "input_size": size}
+            result_row = {
+                "run_id": run_num,
+                "input_size": size,
+                "real_energy_j": benchmark_results.get("real_energy_j",
+                                  benchmark_results.get("sim_time_gpu_s", 0) * 15.0),
+                "energy_source": benchmark_results.get("energy_source", "estimated"),
+                "zeus_window_s": benchmark_results.get("zeus_window_s",
+                                  benchmark_results.get("sim_time_gpu_s", 0)),
+            }
             result_row.update(benchmark_results)
             raw_results.append(result_row)
             

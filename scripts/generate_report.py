@@ -29,27 +29,60 @@ def plot_energy_analysis(classical_df, quantum_df, save_path):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
     fig.suptitle('Analysis 1: Energy Scaling (with Statistical Error)', fontsize=18, fontweight='bold')
 
-    # Plot 1: Classical Energy with Error Bands
-    ax1.plot(classical_df['input_size'], classical_df['measured_energy_j_mean'], **C_EMPIRICAL_MEAN)
+    # --- Plot 1: Classical Energy ---
+    # Legacy flat-constant estimate (time × fixed watts)
+    ax1.plot(classical_df['input_size'], classical_df['measured_energy_j_mean'],
+             color='steelblue', marker='o', linestyle='--',
+             label='Flat-Constant Estimate (time × 15W)')
     ax1.fill_between(classical_df['input_size'],
                      classical_df['measured_energy_j_mean'] - classical_df['measured_energy_j_std'],
                      classical_df['measured_energy_j_mean'] + classical_df['measured_energy_j_std'],
-                     color=C_EMPIRICAL_MEAN['color'], alpha=0.2, label='Classical Std. Dev.')
+                     color='steelblue', alpha=0.15)
+    # Real Zeus measurement (if available in CSV)
+    if 'real_energy_j_mean' in classical_df.columns:
+        ax1.plot(classical_df['input_size'], classical_df['real_energy_j_mean'],
+                 **C_EMPIRICAL_MEAN)
+        ax1.fill_between(classical_df['input_size'],
+                         classical_df['real_energy_j_mean'] - classical_df['real_energy_j_std'],
+                         classical_df['real_energy_j_mean'] + classical_df['real_energy_j_std'],
+                         color=C_EMPIRICAL_MEAN['color'], alpha=0.2, label='Zeus Real Energy ± Std. Dev.')
     ax1_twin = ax1.twinx()
     ax1_twin.plot(classical_df['input_size'], classical_df['projected_energy_j'], **C_THEORY)
-    ax1.set_title('A) Classical MLP', fontsize=14); ax1.set_xlabel('Input Size'); ax1.set_ylabel('Empirical Energy on GPU (J)', color=C_EMPIRICAL_MEAN['color']); ax1_twin.set_ylabel('Projected Energy (MAC Model, J)', color=C_THEORY['color']); ax1.set_yscale('log'); ax1_twin.set_yscale('log'); ax1.grid(True, which='both', linestyle='--'); ax1.legend(loc='upper left')
+    ax1.set_title('A) Classical MLP', fontsize=14)
+    ax1.set_xlabel('Input Size')
+    ax1.set_ylabel('Measured Energy on GPU (J)', color=C_EMPIRICAL_MEAN['color'])
+    ax1_twin.set_ylabel('Projected Energy (MAC Model, J)', color=C_THEORY['color'])
+    ax1.set_yscale('log'); ax1_twin.set_yscale('log')
+    ax1.grid(True, which='both', linestyle='--')
+    ax1.legend(loc='upper left', fontsize=8)
 
-    # Plot 2: Quantum Energy with Error Bands
-    ax2.plot(quantum_df['input_size'], quantum_df['sim_energy_j_mean'], **Q_EMPIRICAL_MEAN)
+    # --- Plot 2: Quantum Energy ---
+    ax2.plot(quantum_df['input_size'], quantum_df['sim_energy_j_mean'],
+             color='tomato', marker='o', linestyle='--',
+             label='Flat-Constant Estimate (time × 15W)')
     ax2.fill_between(quantum_df['input_size'],
                      quantum_df['sim_energy_j_mean'] - quantum_df['sim_energy_j_std'],
                      quantum_df['sim_energy_j_mean'] + quantum_df['sim_energy_j_std'],
-                     color=Q_EMPIRICAL_MEAN['color'], alpha=0.2, label='Quantum Std. Dev.')
+                     color='tomato', alpha=0.15)
+    if 'real_energy_j_mean' in quantum_df.columns:
+        ax2.plot(quantum_df['input_size'], quantum_df['real_energy_j_mean'],
+                 **Q_EMPIRICAL_MEAN)
+        ax2.fill_between(quantum_df['input_size'],
+                         quantum_df['real_energy_j_mean'] - quantum_df['real_energy_j_std'],
+                         quantum_df['real_energy_j_mean'] + quantum_df['real_energy_j_std'],
+                         color=Q_EMPIRICAL_MEAN['color'], alpha=0.2, label='Zeus Real Energy ± Std. Dev.')
     ax2_twin = ax2.twinx()
     ax2_twin.plot(quantum_df['input_size'], quantum_df['projected_energy_j_mean'], **Q_THEORY)
-    ax2.set_title('B) Quantum VQC', fontsize=14); ax2.set_xlabel('Input Size'); ax2.set_ylabel('Sim. Energy on GPU (J)', color=Q_EMPIRICAL_MEAN['color']); ax2_twin.set_ylabel('Projected Energy (Gate Model, J)', color=Q_THEORY['color']); ax2.set_yscale('log'); ax2_twin.set_yscale('log'); ax2.grid(True, which='both', linestyle='--'); ax2.legend(loc='upper left')
-    
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95]); plt.savefig(os.path.join(save_path, "1_energy_analysis.png"), dpi=300)
+    ax2.set_title('B) Quantum VQC', fontsize=14)
+    ax2.set_xlabel('Input Size')
+    ax2.set_ylabel('Measured GPU Energy (J)', color=Q_EMPIRICAL_MEAN['color'])
+    ax2_twin.set_ylabel('Projected Energy (Gate Model, J)', color=Q_THEORY['color'])
+    ax2.set_yscale('log'); ax2_twin.set_yscale('log')
+    ax2.grid(True, which='both', linestyle='--')
+    ax2.legend(loc='upper left', fontsize=8)
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(os.path.join(save_path, "1_energy_analysis.png"), dpi=300)
 
 def plot_memory_analysis(classical_df, quantum_df, save_path):
     fig, ax = plt.subplots(figsize=(10, 8))

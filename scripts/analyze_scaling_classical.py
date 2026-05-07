@@ -103,14 +103,17 @@ def run_empirical_benchmark(input_sizes: list, full_dataset: pd.DataFrame) -> pd
             
             # Append the raw result for this specific run
             raw_results.append({
-                "run_id": run_num, # Keep track of which run this was
+                "run_id": run_num,
                 "input_size": size,
                 "measured_energy_j": measured_energy_j,
+                "real_energy_j": benchmark_results.get("real_energy_j", measured_energy_j),
+                "energy_source": benchmark_results.get("energy_source", "estimated"),
                 "gpu_train_time_s": gpu_train_time_s,
+                "zeus_window_s": benchmark_results.get("zeus_window_s", gpu_train_time_s),
                 "peak_memory_mb": benchmark_results["peak_memory_mb"],
                 "accuracy_auc": benchmark_results["accuracy_auc"],
                 "precision": benchmark_results["precision"],
-                "recall": benchmark_results["recall"]
+                "recall": benchmark_results["recall"],
             })
             os.remove(temp_path)
             
